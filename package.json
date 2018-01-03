@@ -1,0 +1,26 @@
+{
+  "name": "domusto-rfxcom",
+  "version": "1.0.0",
+  "description": "RFXCom 433Mhz receiver plugin for DOMUSTO Home Automation",
+  "main": "index.js",
+  "dependencies": {
+    "rfxcom": "^1.0.1"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/basvdijk/domusto-rfxcom.git"
+  },
+  "keywords": [
+    "domusto"
+  ],
+  "author": "Bas van Dijk",
+  "license": "UNLICENSED",
+  "bugs": {
+    "url": "https://github.com/basvdijk/domusto-rfxcom/issues"
+  },
+  "homepage": "https://github.com/basvdijk/domusto-rfxcom#readme"
+}
