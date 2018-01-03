@@ -5,9 +5,7 @@ import config from '../../config';
 import DomustoPlugin from '../../domusto/DomustoPlugin';
 
 // INTERFACES
-import { PluginCategories } from '../../domusto/interfaces/plugin/PluginMetaData';
-import { PluginConfiguration } from '../../domusto/interfaces/plugin/PluginConfiguration';
-import { TemperatureHumidity } from '../../domusto/interfaces/inputData/InputDataTemperatureHumidity';
+import { Domusto } from '../../domusto/DomustoInterfaces';
 
 // PLUGIN SPECIFIC
 import * as rfxcom from 'rfxcom';
@@ -30,12 +28,12 @@ class DomustoRfxCom extends DomustoPlugin {
      * @param {any} Plugin configuration as defined in the config.js file
      * @memberof DomustoRfxCom
      */
-    constructor(pluginConfiguration: PluginConfiguration) {
+    constructor(pluginConfiguration: Domusto.PluginConfiguration) {
 
         super({
             plugin: 'RfxCom transceiver',
             author: 'Bas van Dijk',
-            category: PluginCategories.radio,
+            category: Domusto.PluginCategories.radio,
             version: '0.0.1',
             website: 'http://domusto.com'
         });
@@ -228,7 +226,7 @@ class DomustoRfxCom extends DomustoPlugin {
 
             let typeString = this._subTypeString(device.protocol.type + '-' + sensorData.subtype);
 
-            let temperatureHumidityData: TemperatureHumidity = {
+            let temperatureHumidityData: Domusto.TemperatureHumidity = {
                 pluginId: this._pluginConfiguration.type,
                 deviceId: sensorData.id,
                 data: {
