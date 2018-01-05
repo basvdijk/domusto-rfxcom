@@ -9,6 +9,7 @@ import { Domusto } from '../../domusto/DomustoInterfaces';
 
 // PLUGIN SPECIFIC
 import * as rfxcom from 'rfxcom';
+import DomustoDevicesManager from '../../domusto/DomustoDevicesManager';
 
 /**
  * RFXcom plugin for DOMUSTO
@@ -53,10 +54,10 @@ class DomustoRfxCom extends DomustoPlugin {
             this.hardwareInstance.initialise(() => {
 
                 if (pluginConfiguration.settings.listenOnly) {
-                    this._listenAll();
+                    this.listenAll();
                     util.log('Listen mode active');
                 } else {
-                    this._initialisePlugin();
+                    this.initialisePlugin();
                 }
                 util.header('RFXcom ready for sending / receiving data');
             });
@@ -67,23 +68,28 @@ class DomustoRfxCom extends DomustoPlugin {
 
     }
 
-    outputCommand(device, command, onSucces) {
+    onSignalReceivedForPlugin(signal: Domusto.Signal) {
 
         if (!this.pluginConfiguration.settings.listenOnly) {
 
-            let protocol = device.protocol;
+            let deviceId = signal.type.split('-')[1];
+
+            let protocol = signal.type.split('-')[0];
+            let protocolType = protocol.split('/')[0];
+            let protocolSubType = protocol.split('/')[1];
+
+            console.log(deviceId, protocol, protocolType, protocolSubType);
 
             // e.g. rfxcom.Lighting2, rfxcom.Lighting3 etc.
-            let rfxConstructor = rfxcom[protocol.type];
+            let rfxConstructor = rfxcom[protocolType];
+            let rfxProtocolType = rfxcom[protocolType.toLowerCase()];
 
-            let rfxProtocolType = rfxcom[protocol.type.toLowerCase()];
-
-            let rfxSwitch = new rfxConstructor(this.hardwareInstance, rfxProtocolType[protocol.subType]);
+            let rfxSwitch = new rfxConstructor(this.hardwareInstance, rfxProtocolType[protocolSubType]);
 
             let rfxCommand = null;
 
             // Convert DOMUSTO command to RfxCom command
-            switch (command) {
+            switch (signal.data['state']) {
                 case 'on':
                     rfxCommand = 'switchOn';
                     break;
@@ -97,21 +103,26 @@ class DomustoRfxCom extends DomustoPlugin {
 
             util.debug('Sending command:');
             util.prettyJson({
-                id: protocol.outputId,
+                id: deviceId,
                 command: rfxCommand
             });
 
             // Execute command
-            rfxSwitch[rfxCommand](protocol.outputId, (res) => {
-                onSucces({ state: rfxCommand === 'switchOn' ? 'on' : 'off' });
+            rfxSwitch[rfxCommand](deviceId, res => {
+
+                this.broadcastSignal(signal.type, {
+                    state: signal.data['state']
+                });
+
             });
 
         }
+
     }
 
-    _initialisePlugin() {
-        this._checkEnabledModes();
-        this._initialiseInputs();
+    initialisePlugin() {
+        this.checkEnabledModes();
+        this.initialiseInputs();
     }
 
 
@@ -120,7 +131,7 @@ class DomustoRfxCom extends DomustoPlugin {
      *
      * @memberof DomustoRfxCom
      */
-    _checkEnabledModes() {
+    checkEnabledModes() {
 
         let hardwareEnabledProtocols = this.statusData.enabledProtocols.sort();
         let configuredEnabledProtocols = this.pluginConfiguration.settings.enabledProtocols.sort();
@@ -143,7 +154,7 @@ class DomustoRfxCom extends DomustoPlugin {
 
             this.hardwareInstance.enable(enabledProtocolArray, () => {
                 util.log('Enabling protocols finished, restarting plugin');
-                this._initialisePlugin();
+                this.initialisePlugin();
             });
 
         }
@@ -155,14 +166,14 @@ class DomustoRfxCom extends DomustoPlugin {
      *
      * @memberof DomustoRfxCom
      */
-    _initialiseInputs() {
+    initialiseInputs() {
 
         let devices = config.devices;
         let protocolsWithListeners = [];
 
         devices.forEach(device => {
 
-            if (device.protocol.pluginId === 'RFXCOM' && device.enabled) {
+            if (device.plugin.id === 'RFXCOM' && device.enabled) {
 
                 let protocolEventName = null;
                 let listenerId = null;
@@ -170,16 +181,17 @@ class DomustoRfxCom extends DomustoPlugin {
 
                 // Temp + Humidity
                 if (device.role === 'input' && device.type === 'temperature') {
+
                     // TODO
-                    protocolEventName = device.protocol['type'];
-                    listenerId = device.protocol.pluginId + device.role + device.type;
-                    eventHandler = this._onInputTemperature;
+                    protocolEventName = device.plugin['type'].split('-')[0];
+                    listenerId = device.plugin.id + device.role + device.type;
+                    eventHandler = this.onInputTemperature;
                 }
                 else if (device.role === 'output' && device.type === 'switch') {
                     // TODO
-                    protocolEventName = device.protocol['type'].toLowerCase();
-                    listenerId = device.protocol.pluginId + protocolEventName;
-                    eventHandler = this._onOutputSwitch;
+                    protocolEventName = device.plugin['type'].split('/')[0].toLowerCase();
+                    listenerId = device.plugin.id + protocolEventName;
+                    eventHandler = this.onOutputSwitch;
                 }
 
                 // Check if an protocol event name, listener id and event handler is set
@@ -200,14 +212,18 @@ class DomustoRfxCom extends DomustoPlugin {
 
     }
 
-    _onOutputSwitch(receivedData) {
+    onOutputSwitch(receivedData) {
         util.debug('Hardware switch event detected', receivedData);
 
-        this.onNewInputData({
-            pluginId: this._pluginConfiguration.type,
-            deviceId: receivedData.unitCode ? receivedData.id + '/' + receivedData.unitCode : receivedData.id,
-            command: receivedData.command ? receivedData.command.toLowerCase() : 'trigger'
-        });
+        let deviceId = receivedData.unitCode ? receivedData.id + '/' + receivedData.unitCode : receivedData.id;
+
+        let device = DomustoDevicesManager.getDeviceByDeviceId(deviceId);
+
+        // Broadcast a signal as if it was send from the client
+        this.broadcastSignal(device.plugin.type, {
+            state: receivedData.command ? receivedData.command.toLowerCase() : 'trigger'
+        }, Domusto.SignalSender.client);
+
     }
 
 
@@ -217,46 +233,26 @@ class DomustoRfxCom extends DomustoPlugin {
      * @param {any} sensorData Data received from the RfxCom
      * @memberof DomustoRfxCom
      */
-    _onInputTemperature(sensorData) {
+    onInputTemperature(sensorData) {
 
-        let device = this._getDeviceById(sensorData.id);
+        let device = DomustoDevicesManager.getDeviceByDeviceId(sensorData.id);
 
         // If the sensorData is from a registered input device
         if (device) {
 
-            let typeString = this._subTypeString(device.protocol.type + '-' + sensorData.subtype);
+            let typeString = this.subTypeString(device.plugin.type.split('-')[0]);
 
-            let temperatureHumidityData: Domusto.TemperatureHumidity = {
-                pluginId: this._pluginConfiguration.type,
-                deviceId: sensorData.id,
-                data: {
-                    deviceTypeString: typeString,                 // Name of device type
-                    temperature: sensorData.temperature,          // Temperature
-                    humidity: sensorData.humidity,                // Humidity
-                    humidityStatus: sensorData.humidityStatus,    // Humidity status: 0: dry, 1: comfort, 2: normal, 3: wet etc.
-                    batteryLevel: sensorData.batteryLevel,        // Battery level
-                    rssi: sensorData.rssi                         // Radio Signal Strength Indication
-                }
-            };
-
-            this.onNewInputData(temperatureHumidityData);
+            this.broadcastSignal(device.plugin.type, {
+                deviceTypeString: typeString,                 // Name of device type
+                temperature: sensorData.temperature,          // Temperature
+                humidity: sensorData.humidity,                // Humidity
+                humidityStatus: sensorData.humidityStatus,    // Humidity status: 0: dry, 1: comfort, 2: normal, 3: wet etc.
+                batteryLevel: sensorData.batteryLevel,        // Battery level
+                rssi: sensorData.rssi                         // Radio Signal Strength Indication
+            });
 
         }
 
-    }
-
-    /**
-     * Get a device by the protocol id or output id
-     *
-     * @param {any} deviceId
-     * @returns Device when found
-     * @memberof DomustoRfxCom
-     */
-    _getDeviceById(deviceId) {
-        return this.attachedInputDeviceIds.find(device => {
-            // Switches have a master/slave, inputs don't
-            return device.protocol.output ? device.protocol.outputId === deviceId : device.protocol.deviceId === deviceId;
-        });
     }
 
 
@@ -267,7 +263,7 @@ class DomustoRfxCom extends DomustoPlugin {
      * @param {any} data Data send by the RfxCom
      * @memberof DomustoRfxCom
      */
-    _listenAllReceivedInput(type, data) {
+    listenAllReceivedInput(type, data) {
         util.debug('Receiving input data for', type);
         util.prettyJson(data);
     }
@@ -278,137 +274,137 @@ class DomustoRfxCom extends DomustoPlugin {
      *
      * @memberof DomustoRfxCom
      */
-    _listenAll() {
+    listenAll() {
 
         this.hardwareInstance.on('response', data => {
-            this._listenAllReceivedInput('response', data);
+            this.listenAllReceivedInput('response', data);
         });
 
         this.hardwareInstance.on('lighting1', (data) => {
-            this._listenAllReceivedInput('lighting1', data);
+            this.listenAllReceivedInput('lighting1', data);
         });
 
         this.hardwareInstance.on('lighting2', data => {
-            this._listenAllReceivedInput('lighting2', data);
+            this.listenAllReceivedInput('lighting2', data);
         });
 
         this.hardwareInstance.on('lighting4', data => {
-            this._listenAllReceivedInput('lighting4', data);
+            this.listenAllReceivedInput('lighting4', data);
         });
 
         this.hardwareInstance.on('lighting5', data => {
-            this._listenAllReceivedInput('lighting5', data);
+            this.listenAllReceivedInput('lighting5', data);
         });
 
         this.hardwareInstance.on('lighting6', data => {
-            this._listenAllReceivedInput('lighting6', data);
+            this.listenAllReceivedInput('lighting6', data);
         });
 
         this.hardwareInstance.on('chime1', data => {
-            this._listenAllReceivedInput('chime1', data);
+            this.listenAllReceivedInput('chime1', data);
         });
 
         this.hardwareInstance.on('blinds1', data => {
-            this._listenAllReceivedInput('blinds1', data);
+            this.listenAllReceivedInput('blinds1', data);
         });
 
         this.hardwareInstance.on('security1', data => {
-            this._listenAllReceivedInput('security1', data);
+            this.listenAllReceivedInput('security1', data);
         });
 
         this.hardwareInstance.on('camera1', data => {
-            this._listenAllReceivedInput('camera1', data);
+            this.listenAllReceivedInput('camera1', data);
         });
 
         this.hardwareInstance.on('remote', data => {
-            this._listenAllReceivedInput('remote', data);
+            this.listenAllReceivedInput('remote', data);
         });
 
         this.hardwareInstance.on('thermostat1', data => {
-            this._listenAllReceivedInput('thermostat1', data);
+            this.listenAllReceivedInput('thermostat1', data);
         });
 
         this.hardwareInstance.on('thermostat3', data => {
-            this._listenAllReceivedInput('thermostat3', data);
+            this.listenAllReceivedInput('thermostat3', data);
         });
 
         this.hardwareInstance.on('bbq1', data => {
-            this._listenAllReceivedInput('bbq1', data);
+            this.listenAllReceivedInput('bbq1', data);
         });
 
         this.hardwareInstance.on('temperaturerain1', data => {
-            this._listenAllReceivedInput('temperaturerain1', data);
+            this.listenAllReceivedInput('temperaturerain1', data);
         });
 
         this.hardwareInstance.on('temperature1', data => {
-            this._listenAllReceivedInput('temperature1', data);
+            this.listenAllReceivedInput('temperature1', data);
         });
 
         this.hardwareInstance.on('humidity1', data => {
-            this._listenAllReceivedInput('humidity1', data);
+            this.listenAllReceivedInput('humidity1', data);
         });
 
         this.hardwareInstance.on('temperaturehumidity1', data => {
-            this._listenAllReceivedInput('temperaturehumidity1', data);
+            this.listenAllReceivedInput('temperaturehumidity1', data);
         });
 
         this.hardwareInstance.on('temphumbaro1', data => {
-            this._listenAllReceivedInput('temphumbaro1', data);
+            this.listenAllReceivedInput('temphumbaro1', data);
         });
 
         this.hardwareInstance.on('rain1', data => {
-            this._listenAllReceivedInput('rain1', data);
+            this.listenAllReceivedInput('rain1', data);
         });
 
         this.hardwareInstance.on('wind1', data => {
-            this._listenAllReceivedInput('wind1', data);
+            this.listenAllReceivedInput('wind1', data);
         });
 
         this.hardwareInstance.on('uv1', data => {
-            this._listenAllReceivedInput('uv1', data);
+            this.listenAllReceivedInput('uv1', data);
         });
 
         this.hardwareInstance.on('datetime', data => {
-            this._listenAllReceivedInput('datetime', data);
+            this.listenAllReceivedInput('datetime', data);
         });
 
         this.hardwareInstance.on('elec1', data => {
-            this._listenAllReceivedInput('elec1', data);
+            this.listenAllReceivedInput('elec1', data);
         });
 
         this.hardwareInstance.on('elec23', data => {
-            this._listenAllReceivedInput('elec23', data);
+            this.listenAllReceivedInput('elec23', data);
         });
 
         this.hardwareInstance.on('elec4', data => {
-            this._listenAllReceivedInput('elec4', data);
+            this.listenAllReceivedInput('elec4', data);
         });
 
         this.hardwareInstance.on('elec5', data => {
-            this._listenAllReceivedInput('elec5', data);
+            this.listenAllReceivedInput('elec5', data);
         });
 
         this.hardwareInstance.on('weight1', data => {
-            this._listenAllReceivedInput('weight1', data);
+            this.listenAllReceivedInput('weight1', data);
         });
 
         this.hardwareInstance.on('cartelectronic', data => {
-            this._listenAllReceivedInput('cartelectronic', data);
+            this.listenAllReceivedInput('cartelectronic', data);
         });
 
         this.hardwareInstance.on('rfxsensor', data => {
-            this._listenAllReceivedInput('rfxsensor', data);
+            this.listenAllReceivedInput('rfxsensor', data);
         });
 
         this.hardwareInstance.on('rfxmeter', data => {
-            this._listenAllReceivedInput('rfxmeter', data);
+            this.listenAllReceivedInput('rfxmeter', data);
         });
 
 
     }
 
     // Descriptions from https://github.com/openhab/openhab2-addons/tree/master/addons/binding/org.openhab.binding.rfxcom
-    _subTypeString(subType) {
+    subTypeString(subType) {
 
         switch (subType) {
 
