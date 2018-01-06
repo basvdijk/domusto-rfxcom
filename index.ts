@@ -72,9 +72,9 @@ class DomustoRfxCom extends DomustoPlugin {
 
         if (!this.pluginConfiguration.settings.listenOnly) {
 
-            let deviceId = signal.type.split('-')[1];
+            let deviceId = signal.deviceId.split('-')[1];
 
-            let protocol = signal.type.split('-')[0];
+            let protocol = signal.deviceId.split('-')[0];
             let protocolType = protocol.split('/')[0];
             let protocolSubType = protocol.split('/')[1];
 
@@ -110,7 +110,7 @@ class DomustoRfxCom extends DomustoPlugin {
             // Execute command
             rfxSwitch[rfxCommand](deviceId, res => {
 
-                this.broadcastSignal(signal.type, {
+                this.broadcastSignal(signal.deviceId, {
                     state: signal.data['state']
                 });
 
@@ -183,13 +183,13 @@ class DomustoRfxCom extends DomustoPlugin {
                 if (device.role === 'input' && device.type === 'temperature') {
 
                     // TODO
-                    protocolEventName = device.plugin['type'].split('-')[0];
+                    protocolEventName = device.plugin['deviceId'].split('-')[0];
                     listenerId = device.plugin.id + device.role + device.type;
                     eventHandler = this.onInputTemperature;
                 }
                 else if (device.role === 'output' && device.type === 'switch') {
                     // TODO
-                    protocolEventName = device.plugin['type'].split('/')[0].toLowerCase();
+                    protocolEventName = device.plugin['deviceId'].split('/')[0].toLowerCase();
                     listenerId = device.plugin.id + protocolEventName;
                     eventHandler = this.onOutputSwitch;
                 }
@@ -220,7 +220,7 @@ class DomustoRfxCom extends DomustoPlugin {
         let device = DomustoDevicesManager.getDeviceByDeviceId(deviceId);
 
         // Broadcast a signal as if it was send from the client
-        this.broadcastSignal(device.plugin.type, {
+        this.broadcastSignal(device.plugin.deviceId, {
             state: receivedData.command ? receivedData.command.toLowerCase() : 'trigger'
         }, Domusto.SignalSender.client);
 
@@ -240,9 +240,9 @@ class DomustoRfxCom extends DomustoPlugin {
         // If the sensorData is from a registered input device
         if (device) {
 
-            let typeString = this.subTypeString(device.plugin.type.split('-')[0]);
+            let typeString = this.subTypeString(device.plugin.deviceId.split('-')[0]);
 
-            this.broadcastSignal(device.plugin.type, {
+            this.broadcastSignal(device.plugin.deviceId, {
                 deviceTypeString: typeString,                 // Name of device type
                 temperature: sensorData.temperature,          // Temperature
                 humidity: sensorData.humidity,                // Humidity

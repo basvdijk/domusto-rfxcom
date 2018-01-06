@@ -72,3 +72,71 @@ When you enable `listenOnly` the plugin listens to all possible events for the e
 - RUBICSON
 - VISONIC
 - X10
+
+## Example devices
+
+```js
+
+// Temperature / humidity sensor
+{
+    id: 'TEMP1',
+    enabled: true,
+    role: 'input',
+    name: 'Living room',
+    type: 'temperature',
+    subType: 'temperature-humidity',
+    plugin: {
+        id: 'RFXCOM',
+        deviceId: 'temperaturehumidity1-0x2303',
+    }
+}
+
+// Blinds
+{
+    id: 'KAKU8',
+    screens: ['test'],
+    enabled: false,
+    role: 'output',
+    name: 'blinds',
+    type: 'switch',
+    subType: 'up/down',
+    plugin: {
+        id: 'RFXCOM',
+        deviceId: 'Lighting2/AC-0x01034500/1'
+    }
+}
+
+// Chime with triggers to SHELL and PUSHBULLET plugin
+{
+    id: 'CHIME1',
+    screens: ['test'],
+    enabled: true,
+    role: 'output',
+    name: 'doorbell',
+    type: 'switch',
+    subType: 'momentary',
+    plugin: {
+        id: 'RFXCOM',
+        deviceId: 'Chime1/SELECT_PLUS-0x00123EF',
+    },
+    triggers: [
+        {
+            listenToEvents: ['trigger'],
+            pluginId: 'SHELL',
+            deviceId: 'shell',
+            data: {
+                shellCommand: 'aplay build/assets/audio/doorbell.wav'
+            }
+        },
+        {
+            listenToEvents: ['trigger'],
+            pluginId: 'PUSHBULLET',
+            deviceId: 'note',
+            data: {
+                title: 'Doorbell',
+                message: 'Ding Dong!'
+            }
+        },
+    ],
+},
+```
