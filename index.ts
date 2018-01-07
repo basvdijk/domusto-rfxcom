@@ -1,4 +1,3 @@
-import util from '../../util';
 import config from '../../config';
 
 // DOMUSTO
@@ -47,7 +46,7 @@ class DomustoRfxCom extends DomustoPlugin {
             this.hardwareInstance = rfxtrx;
 
             this.hardwareInstance.on('status', status => {
-                util.prettyJson(status);
+                this.console.prettyJson(status);
                 this.statusData = status;
             });
 
@@ -55,15 +54,15 @@ class DomustoRfxCom extends DomustoPlugin {
 
                 if (pluginConfiguration.settings.listenOnly) {
                     this.listenAll();
-                    util.log('Listen mode active');
+                    this.console.log('Listen mode active');
                 } else {
                     this.initialisePlugin();
                 }
-                util.header('RFXcom ready for sending / receiving data');
+                this.console.header('RFXcom ready for sending / receiving data');
             });
 
         } catch (error) {
-            util.log('Initialisation of RfxCom plugin failed', error);
+            this.console.log('Initialisation of RfxCom plugin failed', error);
         }
 
     }
@@ -78,7 +77,7 @@ class DomustoRfxCom extends DomustoPlugin {
             let protocolType = protocol.split('/')[0];
             let protocolSubType = protocol.split('/')[1];
 
-            console.log(deviceId, protocol, protocolType, protocolSubType);
+            this.console.log(deviceId, protocol, protocolType, protocolSubType);
 
             // e.g. rfxcom.Lighting2, rfxcom.Lighting3 etc.
             let rfxConstructor = rfxcom[protocolType];
@@ -101,8 +100,8 @@ class DomustoRfxCom extends DomustoPlugin {
                     break;
             }
 
-            util.debug('Sending command:');
-            util.prettyJson({
+            this.console.debug('Sending command:');
+            this.console.prettyJson({
                 id: deviceId,
                 command: rfxCommand
             });
@@ -136,15 +135,15 @@ class DomustoRfxCom extends DomustoPlugin {
         let hardwareEnabledProtocols = this.statusData.enabledProtocols.sort();
         let configuredEnabledProtocols = this.pluginConfiguration.settings.enabledProtocols.sort();
 
-        util.header('CHECKING ENABLED PROTOCOLS ON RFXCOM DEVICE');
+        this.console.header('CHECKING ENABLED PROTOCOLS ON RFXCOM DEVICE');
 
         // check if the enabled protocols are the same as the once on the device
         if (JSON.stringify(hardwareEnabledProtocols) === JSON.stringify(configuredEnabledProtocols)) {
-            util.log('Enabled protocols in config are the same as on hardware. Skipping setting protocols');
+            this.console.log('Enabled protocols in config are the same as on hardware. Skipping setting protocols');
         } else {
-            util.log('Enabled protocols in config are NOT the same as on hardware.');
+            this.console.log('Enabled protocols in config are NOT the same as on hardware.');
 
-            util.log('Enabling protocols in RFXcom device according to config...');
+            this.console.log('Enabling protocols in RFXcom device according to config...');
 
             let enabledProtocolArray = [];
 
@@ -153,7 +152,7 @@ class DomustoRfxCom extends DomustoPlugin {
             }, this);
 
             this.hardwareInstance.enable(enabledProtocolArray, () => {
-                util.log('Enabling protocols finished, restarting plugin');
+                this.console.log('Enabling protocols finished, restarting plugin');
                 this.initialisePlugin();
             });
 
@@ -213,16 +212,19 @@ class DomustoRfxCom extends DomustoPlugin {
     }
 
     onOutputSwitch(receivedData) {
-        util.debug('Hardware switch event detected', receivedData);
+        this.console.debug('Hardware switch event detected', receivedData);
 
         let deviceId = receivedData.unitCode ? receivedData.id + '/' + receivedData.unitCode : receivedData.id;
-
         let device = DomustoDevicesManager.getDeviceByDeviceId(deviceId);
 
-        // Broadcast a signal as if it was send from the client
-        this.broadcastSignal(device.plugin.deviceId, {
-            state: receivedData.command ? receivedData.command.toLowerCase() : 'trigger'
-        }, Domusto.SignalSender.client);
+        if (device) {
+
+            // Broadcast a signal as if it was send from the client
+            this.broadcastSignal(device.plugin.deviceId, {
+                state: receivedData.command ? receivedData.command.toLowerCase() : 'trigger'
+            }, Domusto.SignalSender.client);
+
+        }
 
     }
 
@@ -264,8 +266,8 @@ class DomustoRfxCom extends DomustoPlugin {
      * @memberof DomustoRfxCom
      */
     listenAllReceivedInput(type, data) {
-        util.debug('Receiving input data for', type);
-        util.prettyJson(data);
+        this.console.debug('Receiving input data for', type);
+        this.console.prettyJson(data);
     }
 
 
