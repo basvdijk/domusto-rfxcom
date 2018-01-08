@@ -214,6 +214,8 @@ class DomustoRfxCom extends DomustoPlugin {
     onOutputSwitch(receivedData) {
         this.console.debug('Hardware switch event detected', receivedData);
 
+        this.console.debug(receivedData);
+
         let deviceId = receivedData.unitCode ? receivedData.id + '/' + receivedData.unitCode : receivedData.id;
         let device = DomustoDevicesManager.getDeviceByDeviceId(deviceId);
 
@@ -236,6 +238,8 @@ class DomustoRfxCom extends DomustoPlugin {
      * @memberof DomustoRfxCom
      */
     onInputTemperature(sensorData) {
+
+        this.console.prettyJson(sensorData);
 
         let device = DomustoDevicesManager.getDeviceByDeviceId(sensorData.id);
 
