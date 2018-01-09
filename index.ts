@@ -54,7 +54,7 @@ class DomustoRfxCom extends DomustoPlugin {
 
                 if (pluginConfiguration.settings.listenOnly) {
                     this.listenAll();
-                    this.console.log('Listen mode active');
+                    this.console.warning('Listen mode active');
                 } else {
                     this.initialisePlugin();
                 }
@@ -187,6 +187,7 @@ class DomustoRfxCom extends DomustoPlugin {
                     eventHandler = this.onInputTemperature;
                 }
                 else if (device.role === 'output' && device.type === 'switch') {
+
                     // TODO
                     protocolEventName = device.plugin['deviceId'].split('/')[0].toLowerCase();
                     listenerId = device.plugin.id + protocolEventName;
@@ -214,12 +215,10 @@ class DomustoRfxCom extends DomustoPlugin {
     onOutputSwitch(receivedData) {
         this.console.debug('Hardware switch event detected', receivedData);
 
-        this.console.debug(receivedData);
-
         let deviceId = receivedData.unitCode ? receivedData.id + '/' + receivedData.unitCode : receivedData.id;
-        let device = DomustoDevicesManager.getDeviceByDeviceId(deviceId);
+        let devices = DomustoDevicesManager.getDevicesByDeviceId(deviceId);
 
-        if (device) {
+        for (let device of devices) {
 
             // Broadcast a signal as if it was send from the client
             this.broadcastSignal(device.plugin.deviceId, {
@@ -241,10 +240,10 @@ class DomustoRfxCom extends DomustoPlugin {
 
         this.console.prettyJson(sensorData);
 
-        let device = DomustoDevicesManager.getDeviceByDeviceId(sensorData.id);
+        let devices = DomustoDevicesManager.getDevicesByDeviceId(sensorData.id);
 
         // If the sensorData is from a registered input device
-        if (device) {
+        for (let device of devices) {
 
             let typeString = this.subTypeString(device.plugin.deviceId.split('-')[0]);
 
@@ -270,8 +269,17 @@ class DomustoRfxCom extends DomustoPlugin {
      * @memberof DomustoRfxCom
      */
     listenAllReceivedInput(type, data) {
-        this.console.debug('Receiving input data for', type);
+
+        let pluginConfigData = `
+
+  plugin: {
+      id: ${this.pluginConfiguration.id},
+      deviceId: ` + `${type}-${data.id}` + `,
+  }`;
+
+        this.console.log(`Received data for ${type}`);
         this.console.prettyJson(data);
+        this.console.log(pluginConfigData);
     }
 
 
