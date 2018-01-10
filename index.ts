@@ -1,6 +1,5 @@
-import config from '../../config';
-
 // DOMUSTO
+import config from '../../config';
 import DomustoPlugin from '../../domusto/DomustoPlugin';
 
 // INTERFACES
@@ -38,11 +37,10 @@ class DomustoRfxCom extends DomustoPlugin {
             website: 'http://domusto.com'
         });
 
-        this.pluginConfiguration = pluginConfiguration;
         this.attachedInputDeviceIds = [];
 
         try {
-            let rfxtrx = new rfxcom.RfxCom(pluginConfiguration.settings.port, { debug: this.pluginConfiguration.debug });
+            let rfxtrx = new rfxcom.RfxCom(pluginConfiguration.settings.port, { debug: pluginConfiguration.debug });
             this.hardwareInstance = rfxtrx;
 
             this.hardwareInstance.on('status', status => {
@@ -67,6 +65,22 @@ class DomustoRfxCom extends DomustoPlugin {
 
     }
 
+    /**
+     * Starts plugin bootstrap
+     *
+     * @memberof DomustoRfxCom
+     */
+    initialisePlugin() {
+        this.checkEnabledModes();
+        this.initialiseInputs();
+    }
+
+    /**
+     * Broadcasts new device/sensor data when a radio signal is received
+     *
+     * @param {Domusto.Signal} signal
+     * @memberof DomustoRfxCom
+     */
     onSignalReceivedForPlugin(signal: Domusto.Signal) {
 
         if (!this.pluginConfiguration.settings.listenOnly) {
@@ -119,12 +133,6 @@ class DomustoRfxCom extends DomustoPlugin {
 
     }
 
-    initialisePlugin() {
-        this.checkEnabledModes();
-        this.initialiseInputs();
-    }
-
-
     /**
      * Checks if the enabled protocols on the device match the protocols defined in the config file
      *
@@ -132,8 +140,8 @@ class DomustoRfxCom extends DomustoPlugin {
      */
     checkEnabledModes() {
 
-        let hardwareEnabledProtocols = this.statusData.enabledProtocols.sort();
-        let configuredEnabledProtocols = this.pluginConfiguration.settings.enabledProtocols.sort();
+        const hardwareEnabledProtocols = this.statusData.enabledProtocols.sort();
+        const configuredEnabledProtocols = this.pluginConfiguration.settings.enabledProtocols.sort();
 
         this.console.header('CHECKING ENABLED PROTOCOLS ON RFXCOM DEVICE');
 
@@ -167,8 +175,8 @@ class DomustoRfxCom extends DomustoPlugin {
      */
     initialiseInputs() {
 
-        let devices = config.devices;
-        let protocolsWithListeners = [];
+        const devices = config.devices;
+        const protocolsWithListeners = [];
 
         devices.forEach(device => {
 
@@ -212,11 +220,18 @@ class DomustoRfxCom extends DomustoPlugin {
 
     }
 
+    /**
+     * Is triggered when a input is received most of the time via a hardware switch or remote
+     *
+     * @param {any} receivedData
+     * @memberof DomustoRfxCom
+     */
     onOutputSwitch(receivedData) {
-        this.console.debug('Hardware switch event detected', receivedData);
+        this.console.debug('Hardware switch event detected');
+        this.console.prettyJson(receivedData);
 
-        let deviceId = receivedData.unitCode ? receivedData.id + '/' + receivedData.unitCode : receivedData.id;
-        let devices = DomustoDevicesManager.getDevicesByDeviceId(deviceId);
+        const deviceId = receivedData.unitCode ? receivedData.id + '/' + receivedData.unitCode : receivedData.id;
+        const devices = DomustoDevicesManager.getDevicesByDeviceId(deviceId);
 
         for (let device of devices) {
 
@@ -229,7 +244,6 @@ class DomustoRfxCom extends DomustoPlugin {
 
     }
 
-
     /**
      * Sends an data update to DOMUSTO for temperature data
      *
@@ -240,12 +254,13 @@ class DomustoRfxCom extends DomustoPlugin {
 
         this.console.prettyJson(sensorData);
 
-        let devices = DomustoDevicesManager.getDevicesByDeviceId(sensorData.id);
+        const devices = DomustoDevicesManager.getDevicesByDeviceId(sensorData.id);
 
         // If the sensorData is from a registered input device
         for (let device of devices) {
 
-            let typeString = this.subTypeString(device.plugin.deviceId.split('-')[0]);
+            const protocolId = device.plugin.deviceId.split('-')[0];
+            const typeString = this.subTypeString(protocolId + '-' + sensorData.subtype);
 
             this.broadcastSignal(device.plugin.deviceId, {
                 deviceTypeString: typeString,                 // Name of device type
@@ -259,7 +274,6 @@ class DomustoRfxCom extends DomustoPlugin {
         }
 
     }
-
 
     /**
      * Triggered when the listenAll received data
