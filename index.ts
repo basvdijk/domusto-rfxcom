@@ -276,7 +276,7 @@ class DomustoRfxCom extends DomustoPlugin {
     }
 
     /**
-     * Triggered when the listenAll received data
+     * Triggered when the listenAll receives data
      *
      * @param {any} type Protocol type
      * @param {any} data Data send by the RfxCom
