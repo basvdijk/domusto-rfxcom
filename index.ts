@@ -37,30 +37,49 @@ class DomustoRfxCom extends DomustoPlugin {
             website: 'http://domusto.com'
         });
 
-        this.attachedInputDeviceIds = [];
+        const isConfigurationValid = this.validateConfigurationAttributes(pluginConfiguration.settings, [
+            {
+                attribute: 'port',
+                type: 'string'
+            },
+            {
+                attribute: 'listenOnly',
+                type: 'boolean'
+            },
+            {
+                attribute: 'enabledProtocols',
+                type: 'object'
+            }
+        ]);
 
-        try {
-            let rfxtrx = new rfxcom.RfxCom(pluginConfiguration.settings.port, { debug: pluginConfiguration.debug });
-            this.hardwareInstance = rfxtrx;
+        if (isConfigurationValid) {
 
-            this.hardwareInstance.on('status', status => {
-                this.console.prettyJson(status);
-                this.statusData = status;
-            });
+            this.attachedInputDeviceIds = [];
 
-            this.hardwareInstance.initialise(() => {
+            try {
+                let rfxtrx = new rfxcom.RfxCom(pluginConfiguration.settings.port, { debug: pluginConfiguration.debug });
+                this.hardwareInstance = rfxtrx;
 
-                if (pluginConfiguration.settings.listenOnly) {
-                    this.listenAll();
-                    this.console.warning('Listen mode active');
-                } else {
-                    this.initialisePlugin();
-                }
-                this.console.header('RFXcom ready for sending / receiving data');
-            });
+                this.hardwareInstance.on('status', status => {
+                    this.console.prettyJson(status);
+                    this.statusData = status;
+                });
 
-        } catch (error) {
-            this.console.log('Initialisation of RfxCom plugin failed', error);
+                this.hardwareInstance.initialise(() => {
+
+                    if (pluginConfiguration.settings.listenOnly) {
+                        this.listenAll();
+                        this.console.warning('Listen mode active');
+                    } else {
+                        this.initialisePlugin();
+                    }
+                    this.console.header(`${pluginConfiguration.id} plugin ready for sending / receiving data`);
+                });
+
+            } catch (error) {
+                this.console.log('Initialisation of RfxCom plugin failed', error);
+            }
+
         }
 
     }
@@ -149,7 +168,7 @@ class DomustoRfxCom extends DomustoPlugin {
         if (JSON.stringify(hardwareEnabledProtocols) === JSON.stringify(configuredEnabledProtocols)) {
             this.console.log('Enabled protocols in config are the same as on hardware. Skipping setting protocols');
         } else {
-            this.console.log('Enabled protocols in config are NOT the same as on hardware.');
+            this.console.warning('Enabled protocols in config are NOT the same as on hardware.');
 
             this.console.log('Enabling protocols in RFXcom device according to config...');
 
@@ -159,9 +178,8 @@ class DomustoRfxCom extends DomustoPlugin {
                 enabledProtocolArray.push(rfxcom.protocols[protocol]);
             }, this);
 
-            this.hardwareInstance.enable(enabledProtocolArray, () => {
-                this.console.log('Enabling protocols finished, restarting plugin');
-                this.initialisePlugin();
+            this.hardwareInstance.enableRFXProtocols(enabledProtocolArray, () => {
+                this.console.error('Enabling protocols finished, please restart DOMUSTO');
             });
 
         }
