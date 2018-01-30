@@ -87,7 +87,7 @@ When you enable `listenOnly` the plugin listens to all possible events for the e
     subType: 'temperature-humidity',
     plugin: {
         id: 'RFXCOM',
-        deviceId: 'temperaturehumidity1-0x2303',
+        deviceId: 'temperaturehumidity1/TH13-0x2303',
     }
 }
 
@@ -102,7 +102,7 @@ When you enable `listenOnly` the plugin listens to all possible events for the e
     subType: 'up/down',
     plugin: {
         id: 'RFXCOM',
-        deviceId: 'Lighting2/AC-0x01034500/1'
+        deviceId: 'lighting2/AC-0x01034500/1'
     }
 }
 
@@ -117,7 +117,7 @@ When you enable `listenOnly` the plugin listens to all possible events for the e
     subType: 'momentary',
     plugin: {
         id: 'RFXCOM',
-        deviceId: 'Chime1/SELECT_PLUS-0x00123EF',
+        deviceId: 'chime1/SELECT_PLUS-0x00123EF',
     },
     triggers: [
         {
