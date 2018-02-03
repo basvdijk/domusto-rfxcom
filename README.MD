@@ -8,6 +8,10 @@ version:   0.0.1
 website:   http://domusto.com
 ```
 
+## Features
+- [x] Listen/transmit device events
+- [x] listen to sensor events
+
 ## Hardware needed
 - [RFXtrx433E tranceiver](http://www.rfxcom.com/) - € 109.95
 
