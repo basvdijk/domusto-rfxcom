@@ -133,6 +133,8 @@ class DomustoRfxCom extends DomustoPlugin {
                     break;
             }
 
+            this.logToFile('Switch activated for', deviceId, 'command', rfxCommand);
+
             this.console.debug('Sending command:');
             this.console.prettyJson({
                 id: deviceId,
@@ -252,7 +254,9 @@ class DomustoRfxCom extends DomustoPlugin {
             // Broadcast a signal as if it was send from the client
             this.broadcastSignal(device.plugin.deviceId, {
                 state: receivedData.command ? receivedData.command.toLowerCase() : 'trigger'
-            }, Domusto.SignalSender.client);
+            });
+
+            // }, Domusto.SignalSender.client);
 
         }
 
