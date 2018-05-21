@@ -254,9 +254,7 @@ class DomustoRfxCom extends DomustoPlugin {
             // Broadcast a signal as if it was send from the client
             this.broadcastSignal(device.plugin.deviceId, {
                 state: receivedData.command ? receivedData.command.toLowerCase() : 'trigger'
-            });
-
-            // }, Domusto.SignalSender.client);
+            }, Domusto.SignalSender.client);
 
         }
 
